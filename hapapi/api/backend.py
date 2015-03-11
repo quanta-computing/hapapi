@@ -2,6 +2,7 @@
 Haproxy Backend API views
 
 """
+from flask import abort
 from flask.views import MethodView
 from flask.json import jsonify
 
@@ -27,23 +28,30 @@ class BackendView(MethodView, HAProxyViewMixin):
     def get(self, proxy, name=None):
         if not name:
             return self.list(proxy)
-        backend = self.haproxy.get_backend(proxy, name)
-        return jsonify({
-            'proxy': proxy,
-            'backend': {
-                'name': name,
-                'status': backend.pop('status'),
-                'stats': backend,
-             },
-        })
+        try:
+            backend = self.haproxy.get_backend(proxy, name)
+            return jsonify({
+                'proxy': proxy,
+                'backend': {
+                    'name': name,
+                    'status': backend.pop('status'),
+                    'stats': backend,
+                 },
+            })
+        except KeyError as e:
+            raise e
+            abort(404)
 
 
     def post(self, proxy, name, action):
-        {
-            'enable': self.haproxy.enable_backend,
-            'disable': self.haproxy.disable_backend,
-        }[action](proxy, name)
-        return self.get(proxy, name)
+        try:
+            {
+                'enable': self.haproxy.enable_backend,
+                'disable': self.haproxy.disable_backend,
+            }[action](proxy, name)
+            return self.get(proxy, name)
+        except:
+            abort(404)
 
 
     def put(self, proxy, name, action):
