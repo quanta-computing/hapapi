@@ -4,6 +4,22 @@ This module deals with HAProxy local socket
 """
 import socket
 
+from werkzeug.exceptions import HTTPException
+
+
+class HAProxyError(HTTPException):
+    """
+    Exception class to deal with HAproxy socket errors
+
+    """
+
+    def __init__(self, message, code=500):
+        self.code = 500
+        self.description = message
+
+    def __str__(self):
+        return str(self.description)
+
 
 class HAProxy(object):
     """
@@ -24,7 +40,7 @@ class HAProxy(object):
         'comp_rsp', 'lastsess', 'last_chk', 'last_agt', 'qtime', 'ctime',
         'rtime', 'ttime'
     ]
-
+    INTERNAL_BACKEND_NAMES = ['BACKEND', 'FRONTEND']
 
     def __init__(self, sock_path=DEFAULT_SOCKET):
         self.sock_path = sock_path
@@ -46,8 +62,11 @@ class HAProxy(object):
 
         """
         cmd = cmd.rstrip() + '\n'
-        sock = self._connect()
-        sock.sendall(cmd.encode('ascii'))
+        try:
+            sock = self._connect()
+            sock.sendall(cmd.encode('ascii'))
+        except:
+            raise HAProxyError('Cannot connect to HAproxy local socket. Is HAproxy running ?')
         response = b''
         while 42:
             data = sock.recv(self.READ_SIZE)
@@ -58,21 +77,51 @@ class HAProxy(object):
         return response.decode('ascii')
 
 
+    def info(self):
+        """
+        Returns the informations related to HAproxy status as a dict
+
+        """
+        return dict(map(
+            lambda l: tuple(map(lambda v: v.rstrip(), l.split(': '))),
+            self._command('show info').splitlines()[:-1]
+        ))
+
+
     def stat(self):
         """
         Executes the stat command and returns the result as a dict
 
         """
+        def _to_int_safe(value):
+            """
+            Try to converts the value to an integer but returns the value as is
+            if it is not possible
+
+            """
+            try:
+                return int(value)
+            except ValueError as e:
+                return value
+
         proxies = {}
         for line in self._command('show stat').splitlines()[1:]:
             line = line.rstrip()
             if not line:
                 continue
             proxy, server, *stats = line.split(',')
+            stats = dict(zip(self.HAPROXY_STATS, map(_to_int_safe, stats)))
             if not proxy in proxies:
-                proxies[proxy] = {}
-            proxies[proxy].update({
-                server: dict(zip(self.HAPROXY_STATS, stats))
+                proxies[proxy] = {
+                    'stats': {},
+                    'backends': {},
+                }
+            if server in self.INTERNAL_BACKEND_NAMES:
+                key = 'stats'
+            else:
+                key = 'backends'
+            proxies[proxy][key].update({
+                server: stats,
             })
         return proxies
 
@@ -81,10 +130,13 @@ class HAProxy(object):
         return list(self.stat().keys())
 
     def list_backends(self, proxy):
-        return list(self.stat()[proxy].keys())
+        return list(self.stat()[proxy]['backends'].keys())
 
     def get_backend(self, proxy, name):
-        return self.stat()[proxy][name]
+        return self.stat()[proxy]['backends'][name]
+
+    def get_proxy(self, proxy):
+        return self.stat()[proxy]
 
 
     def enable_backend(self, proxy, backend):
