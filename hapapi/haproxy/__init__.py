@@ -110,7 +110,9 @@ class HAProxy(object):
             line = line.rstrip()
             if not line:
                 continue
-            proxy, server, *stats = line.split(',')
+            stats = line.split(',')
+            proxy = stats.pop(0)
+            server = stats.pop(0)
             stats = dict(zip(self.HAPROXY_STATS, map(_to_int_safe, stats)))
             if not proxy in proxies:
                 proxies[proxy] = {

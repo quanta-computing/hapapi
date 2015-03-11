@@ -22,7 +22,7 @@ def requirements():
 
 setup(
     name='hapapi',
-    version='0.1.1',
+    version='0.1.2',
     description='HAproxy RESTful API',
     long_description=readme(),
     license='MIT',
