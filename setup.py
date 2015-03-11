@@ -22,8 +22,8 @@ def requirements():
 
 setup(
     name='hapapi',
-    version='0.0.1',
-    description='HAProxy RESTful API',
+    version='0.1.0',
+    description='HAproxy RESTful API',
     long_description=readme(),
     license='MIT',
     url='https://github.com/quanta-computing/hapapi',
@@ -40,7 +40,7 @@ setup(
     packages=find_packages(),
     entry_points={
         'console_scripts': [
-            'pwatch = pwatch.__main__:main',
+            'hapapi = hapapi.__main__:main',
         ],
     },
     install_requires=requirements(),
