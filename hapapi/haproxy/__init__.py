@@ -42,8 +42,9 @@ class HAProxy(object):
     ]
     INTERNAL_BACKEND_NAMES = ['BACKEND', 'FRONTEND']
 
-    def __init__(self, sock_path=DEFAULT_SOCKET):
-        self.sock_path = sock_path
+    def __init__(self):
+        from .. import app
+        self.sock_path = app.config.get('HAPROXY_SOCKET', self.DEFAULT_SOCKET)
 
 
     def _connect(self):
